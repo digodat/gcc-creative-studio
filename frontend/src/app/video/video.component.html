@@ -197,7 +197,7 @@
         </mat-menu>
       </div>
 
-      <!-- <div
+      <div
         matTooltip="Select Video Duration"
         class="cursor-pointer w-24 inline-flex flex-col justify-start items-center"
       >
@@ -223,7 +223,35 @@
             <span>{{ duration }}s</span>
           </button>
         </mat-menu>
-      </div> -->
+      </div>
+
+      <div
+        matTooltip="Select Resolution"
+        class="cursor-pointer w-24 inline-flex flex-col justify-start items-center"
+      >
+        <button
+          mat-fab
+          [matMenuTriggerFor]="resolutionMenu"
+          class="!w-16 !h-16 !shadow-none text-center justify-center text-stone-300 text-2xl"
+        >
+          <mat-icon>hd</mat-icon>
+        </button>
+        <div class="text-center justify-center text-neutral-200 text-base mt-2">
+          {{ searchRequest.resolution ?? '720p' }}
+        </div>
+        <mat-menu #resolutionMenu="matMenu">
+          <button
+            *ngFor="let opt of resolutionOptions"
+            mat-menu-item
+            [ngClass]="{
+              'menu-item-selected': searchRequest.resolution === opt.value,
+            }"
+            (click)="selectResolution(opt.value)"
+          >
+            <span>{{ opt.label }}</span>
+          </button>
+        </mat-menu>
+      </div>
 
       <div
         matTooltip="Select Composition"

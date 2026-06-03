@@ -328,12 +328,12 @@ def _process_video_in_background(
                                     aspect_ratio=request_dto.aspect_ratio,
                                     negative_prompt=request_dto.negative_prompt,
                                     generate_audio=request_dto.generate_audio,
-                                    # TODO: Pass from dto the secs if extending video (4, 5, 6, 7)
                                     duration_seconds=(
                                         request_dto.duration_seconds
                                         if not source_video_for_api
-                                        else 7
+                                        else 8
                                     ),
+                                    resolution=request_dto.resolution,
                                     last_frame=end_image_for_api,
                                     reference_images=(
                                         reference_images_for_api

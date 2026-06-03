@@ -65,6 +65,7 @@ export type VeoRequest = {
   negativePrompt: string;
   generateAudio: boolean;
   durationSeconds: number;
+  resolution?: '720p' | '1080p' | '4k';
   startImageAssetId?: number;
   endImageAssetId?: number;
   sourceVideoAssetId?: number;
