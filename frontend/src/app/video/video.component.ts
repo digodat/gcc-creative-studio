@@ -138,6 +138,7 @@ export class VideoComponent implements OnInit, AfterViewInit {
     negativePrompt: '',
     generateAudio: true,
     durationSeconds: 8,
+    resolution: '720p',
     useBrandGuidelines: false,
     enhancePrompt: false,
     referenceImages: [],
@@ -193,7 +194,12 @@ export class VideoComponent implements OnInit, AfterViewInit {
     'Warm',
   ];
   numberOfVideosOptions = [1, 2, 3, 4];
-  durationOptions = [8];
+  durationOptions = [4, 6, 8];
+  resolutionOptions: {value: '720p' | '1080p' | '4k'; label: string}[] = [
+    {value: '720p', label: '720p'},
+    {value: '1080p', label: '1080p'},
+    {value: '4k', label: '4K'},
+  ];
   compositions = [
     'Closeup',
     'Knolling',
@@ -284,6 +290,7 @@ export class VideoComponent implements OnInit, AfterViewInit {
       lighting: this.searchRequest.lighting,
       numberOfMedia: this.searchRequest.numberOfMedia,
       durationSeconds: this.searchRequest.durationSeconds,
+      resolution: this.searchRequest.resolution ?? '720p',
       composition: this.searchRequest.composition,
       generateAudio: this.searchRequest.generateAudio,
       negativePrompt: this.searchRequest.negativePrompt || '',
@@ -303,6 +310,7 @@ export class VideoComponent implements OnInit, AfterViewInit {
     this.searchRequest.lighting = state.lighting;
     this.searchRequest.numberOfMedia = state.numberOfMedia;
     this.searchRequest.durationSeconds = state.durationSeconds;
+    this.searchRequest.resolution = state.resolution ?? '720p';
     this.searchRequest.composition = state.composition;
     this.searchRequest.generateAudio = state.generateAudio;
     this.searchRequest.negativePrompt = state.negativePrompt;
@@ -351,43 +359,25 @@ export class VideoComponent implements OnInit, AfterViewInit {
     this.searchRequest.generationModel = model.value;
     this.selectedGenerationModel = model.viewValue;
 
-    const isVeo2 =
-      model.value.includes('veo-2.0') && model.value !== 'veo-2.0-generate-exp';
-    const isVeo2Exp = model.value === 'veo-2.0-generate-exp';
+    this.clearOtherImage(1);
 
-    if (isVeo2) {
-      // Veo 2 models do not support audio.
-      this.isAudioGenerationDisabled = true;
-      this.searchRequest.generateAudio = false;
+    // All remaining Veo 3.1 models support audio.
+    this.isAudioGenerationDisabled = false;
+    this.searchRequest.generateAudio = true;
 
-      // Re-enable all aspect ratios for Veo 2.
-      this.aspectRatioOptions.forEach(opt => (opt.disabled = false));
-    } else if (isVeo2Exp) {
-      // Veo 2 Exp model does not support audio.
-      this.isAudioGenerationDisabled = true;
-      this.searchRequest.generateAudio = false;
-      this.aspectRatioOptions.forEach(opt => (opt.disabled = false));
-    } else {
-      this.clearOtherImage(1);
-
-      // Veo 3 models support audio.
-      this.isAudioGenerationDisabled = false;
-      this.searchRequest.generateAudio = true;
-
-      // Veo 3 only supports 16:9 and 9:16 aspect ratios.
-      const supportedRatios = ['16:9', '9:16'];
-      if (!supportedRatios.includes(this.searchRequest.aspectRatio)) {
-        this.searchRequest.aspectRatio = '16:9';
-        const landscapeOption = this.aspectRatioOptions.find(
-          opt => opt.value === '16:9',
-        )!;
-        this.selectedAspectRatio = landscapeOption.viewValue;
-      }
-
-      this.aspectRatioOptions.forEach(opt => {
-        opt.disabled = !supportedRatios.includes(opt.value);
-      });
+    // Veo 3.1 only supports 16:9 and 9:16 aspect ratios.
+    const supportedRatios = ['16:9', '9:16'];
+    if (!supportedRatios.includes(this.searchRequest.aspectRatio)) {
+      this.searchRequest.aspectRatio = '16:9';
+      const landscapeOption = this.aspectRatioOptions.find(
+        opt => opt.value === '16:9',
+      )!;
+      this.selectedAspectRatio = landscapeOption.viewValue;
     }
+
+    this.aspectRatioOptions.forEach(opt => {
+      opt.disabled = !supportedRatios.includes(opt.value);
+    });
   }
 
   selectAspectRatio(ratio: string | {value: string; viewValue: string}): void {
@@ -434,6 +424,11 @@ export class VideoComponent implements OnInit, AfterViewInit {
 
   selectDuration(seconds: number): void {
     this.searchRequest.durationSeconds = seconds;
+    this.saveState();
+  }
+
+  selectResolution(resolution: '720p' | '1080p' | '4k'): void {
+    this.searchRequest.resolution = resolution;
     this.saveState();
   }
 
@@ -761,7 +756,7 @@ export class VideoComponent implements OnInit, AfterViewInit {
   resetAllFilters() {
     this.searchRequest = {
       prompt: '',
-      generationModel: 'veo-3.0-generate-001',
+      generationModel: 'veo-3.1-generate-001',
       aspectRatio: '16:9',
       numberOfMedia: 4,
       style: null,
@@ -771,6 +766,7 @@ export class VideoComponent implements OnInit, AfterViewInit {
       negativePrompt: '',
       generateAudio: true,
       durationSeconds: 8,
+      resolution: '720p',
       useBrandGuidelines: false,
       enhancePrompt: false,
     };

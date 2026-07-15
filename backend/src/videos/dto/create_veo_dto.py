@@ -94,10 +94,26 @@ class CreateVeoDto(BaseDto):
     )
     duration_seconds: int = Field(
         default=8,
-        ge=1,
-        le=8,
-        description="Duration in seconds for the videos to generate (between 1 and 8 secs).",
+        description="Duration in seconds for the videos to generate (4, 6, or 8 secs).",
     )
+    resolution: str | None = Field(
+        default=None,
+        description="Output resolution: '720p', '1080p', or '4k'.",
+    )
+
+    @field_validator("duration_seconds")
+    @classmethod
+    def validate_duration(cls, v: int) -> int:
+        if v not in (4, 6, 8):
+            raise ValueError("duration_seconds must be 4, 6, or 8")
+        return v
+
+    @field_validator("resolution")
+    @classmethod
+    def validate_resolution(cls, v: str | None) -> str | None:
+        if v is not None and v not in ("720p", "1080p", "4k"):
+            raise ValueError("resolution must be '720p', '1080p', or '4k'")
+        return v
     start_image_asset_id: int | None = Field(
         default=None,
         description="The ID of the SourceAsset to use as the starting image.",

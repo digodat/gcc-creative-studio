@@ -15,6 +15,8 @@
 
 
 import asyncio
+import base64
+import json
 import logging
 
 from fastapi import Depends, HTTPException, status
@@ -40,6 +42,49 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 logger = logging.getLogger(__name__)
 
+_FIREBASE_ISSUER_PREFIX = "https://securetoken.google.com/"
+
+
+def _peek_token_claims(token: str) -> dict:
+    """Decode JWT payload without verifying signature (for issuer routing)."""
+    try:
+        payload_part = token.split(".")[1]
+        padded = payload_part + "=" * (-len(payload_part) % 4)
+        return json.loads(base64.urlsafe_b64decode(padded))
+    except (IndexError, ValueError, json.JSONDecodeError):
+        return {}
+
+
+def _is_firebase_id_token(claims: dict) -> bool:
+    issuer = claims.get("iss", "")
+    return isinstance(issuer, str) and issuer.startswith(_FIREBASE_ISSUER_PREFIX)
+
+
+def _is_email_password_user(decoded_token: dict) -> bool:
+    firebase_info = decoded_token.get("firebase") or {}
+    return firebase_info.get("sign_in_provider") == "password"
+
+
+async def _verify_auth_token(token: str) -> dict:
+    """Verify Google OIDC or Firebase ID tokens depending on issuer/environment."""
+    peeked = _peek_token_claims(token)
+    use_firebase = (
+        config_service.ENVIRONMENT == "local" or _is_firebase_id_token(peeked)
+    )
+
+    if use_firebase:
+        logger.info("Verifying token using Firebase Admin SDK...")
+        return await asyncio.to_thread(auth.verify_id_token, token)
+
+    # Development/Production Google Identity Platform (OIDC / One Tap)
+    google_token_audience = config_service.GOOGLE_TOKEN_AUDIENCE
+    return await asyncio.to_thread(
+        id_token.verify_oauth2_token,
+        token,
+        google_auth_requests.Request(),
+        audience=google_token_audience,
+    )
+
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
@@ -48,31 +93,15 @@ async def get_current_user(
     """Dependency that handles the entire authentication and user
     provisioning flow.
 
-    1. Verifies the Firebase ID token.
+    1. Verifies the Firebase ID token or Google OIDC token.
     2. Extracts user information (id, email).
     3. Checks if a user document exists in Firestore.
     4. If the user is new, creates their document ("Just-In-Time Provisioning").
     5. Returns a Pydantic model with the user's data.
     """
+    email = None
     try:
-        decoded_token = {}
-        if config_service.ENVIRONMENT == "local":
-            # --- Local: Use Firebase Auth ---
-            # Verifies the token using the standard Firebase Admin SDK method.
-            logger.info("Verifying token using Firebase Admin SDK...")
-            decoded_token = await asyncio.to_thread(auth.verify_id_token, token)
-        else:
-            # --- Development/Production: Use Google Identity Platform
-            # (OIDC) ---
-            # Verifies the Google-issued OIDC ID token. The audience must be the
-            # OAuth 2.0 client ID of the Identity Platform-protected resource.
-            google_token_audience = config_service.GOOGLE_TOKEN_AUDIENCE
-            decoded_token = await asyncio.to_thread(
-                id_token.verify_oauth2_token,
-                token,
-                google_auth_requests.Request(),
-                audience=google_token_audience,
-            )
+        decoded_token = await _verify_auth_token(token)
 
         email = decoded_token.get("email")
         name = decoded_token.get("name")
@@ -89,8 +118,16 @@ async def get_current_user(
                 ),
             )
 
+        # Email/password console users often lack a display name.
+        if not name:
+            local_part = email.split("@")[0]
+            name = local_part if len(local_part) >= 2 else email
+
         # If ALLOWED_ORGS is configured, check the user's organization.
-        if config_service.ALLOWED_ORGS:
+        # Email/password users have no Workspace `hd` claim — skip for them.
+        if config_service.ALLOWED_ORGS and not _is_email_password_user(
+            decoded_token
+        ):
             if (
                 not token_info_hd
                 or token_info_hd not in config_service.ALLOWED_ORGS

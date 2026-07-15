@@ -26,6 +26,7 @@ export interface VideoState {
   lighting: string | null;
   numberOfMedia: number;
   durationSeconds: number;
+  resolution: '720p' | '1080p' | '4k';
   composition: string | null;
   generateAudio: boolean;
   negativePrompt: string;
@@ -47,6 +48,7 @@ export class VideoStateService {
     lighting: null,
     numberOfMedia: 4,
     durationSeconds: 8,
+    resolution: '720p',
     composition: null,
     generateAudio: true,
     negativePrompt: '',

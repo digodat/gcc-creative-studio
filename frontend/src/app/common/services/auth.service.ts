@@ -23,6 +23,7 @@ import {Auth, IdTokenResult} from '@angular/fire/auth';
 import {UserService} from '../services/user.service';
 import {
   GoogleAuthProvider,
+  signInWithEmailAndPassword,
   signInWithPopup,
   UserCredential,
 } from '@angular/fire/auth';
@@ -231,21 +232,75 @@ export class AuthService {
   }
 
   /**
-   * Asynchronously gets a valid Identity Platform token.
-   * 1. Checks for a valid, non-expired token in memory/cache.
-   * 2. If expired or missing, attempts a silent refresh.
-   * 3. If silent refresh fails, it emits an error, signaling a required re-login.
+   * Sign in with email/password via Firebase Auth (Identity Platform).
+   * Works in local and production; returns a Firebase ID token.
+   */
+  signInWithEmailPassword(
+    email: string,
+    password: string,
+  ): Observable<string> {
+    return from(signInWithEmailAndPassword(this.auth, email, password)).pipe(
+      switchMap((userCredential: UserCredential) => {
+        if (!userCredential.user) {
+          return throwError(
+            () => new Error('Firebase user not found after sign-in.'),
+          );
+        }
+        return from(userCredential.user.getIdTokenResult());
+      }),
+      switchMap((idTokenResult: IdTokenResult) => {
+        const token = idTokenResult.token;
+        const expirationTime = Date.parse(idTokenResult.expirationTime);
+
+        this.firebaseIdToken = token;
+        this.firebaseTokenExpiry = expirationTime;
+        const session: FirebaseSession = {token, expiry: expirationTime};
+        localStorage.setItem(FIREBASE_SESSION_KEY, JSON.stringify(session));
+
+        return this.syncUserWithBackend$(token).pipe(map(() => token));
+      }),
+      catchError((error: any) => {
+        console.error('Email/password sign-in failed:', error);
+        const message =
+          error?.code === 'auth/invalid-credential' ||
+          error?.code === 'auth/wrong-password' ||
+          error?.code === 'auth/user-not-found'
+            ? 'Invalid email or password.'
+            : error?.message || 'Sign-in failed. Please try again.';
+        return throwError(() => new Error(message));
+      }),
+    );
+  }
+
+  /**
+   * Asynchronously gets a valid Identity Platform / Firebase token.
+   * Refreshes via Firebase Auth when a currentUser is available
+   * (email/password or local Google popup). Otherwise returns the
+   * cached Google One Tap / GIS token from localStorage.
    */
   getValidIdentityPlatformToken$(): Observable<string> {
-    // First, check our own session info which is loaded from localStorage.
-    // This is synchronous and tells us if we have a valid, non-expired token.
     if (!this.isLoggedIn()) {
-      return of();
+      return throwError(
+        () => new Error('User session is not valid or has expired.'),
+      );
     }
 
-    // Fallback case: The Firebase Auth instance is not yet initialized, but we
-    // have a valid token from localStorage. We can use this for the current
-    // request. The next request will likely hit the ideal case above.
+    const currentUser = this.auth.currentUser;
+    if (currentUser) {
+      return from(currentUser.getIdToken(true)).pipe(
+        tap((token: string) => {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          const expiry = payload.exp * 1000;
+
+          this.firebaseIdToken = token;
+          this.firebaseTokenExpiry = expiry;
+
+          const session: FirebaseSession = {token, expiry};
+          localStorage.setItem(FIREBASE_SESSION_KEY, JSON.stringify(session));
+        }),
+      );
+    }
+
     return of(this.firebaseIdToken!);
   }
 

@@ -71,4 +71,6 @@ apis_to_enable = [
   "firestore.googleapis.com",
   "texttospeech.googleapis.com",
   "workflows.googleapis.com",
+  "identitytoolkit.googleapis.com",  # Identity Platform / Firebase Auth
+  "firebase.googleapis.com",         # Firebase project + Auth console
 ]

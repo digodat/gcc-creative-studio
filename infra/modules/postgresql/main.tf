@@ -23,8 +23,8 @@ resource "google_sql_database_instance" "default" {
   project          = var.project_id
 
   settings {
-    tier = "db-perf-optimized-N-2"
-    
+    tier = var.db_tier
+
     # Enable IAM Authentication for better security (optional but recommended)
     database_flags {
       name  = "cloudsql.iam_authentication"
@@ -35,8 +35,13 @@ resource "google_sql_database_instance" "default" {
       ipv4_enabled = true # Easy connectivity from Cloud Run without VPC peering complexity
     }
   }
-  
+
   deletion_protection = false # Set to true for production
+
+  lifecycle {
+    # Avoid accidental scale/edition changes on already-provisioned instances.
+    ignore_changes = [settings[0].tier]
+  }
 }
 
 resource "google_sql_database" "default" {
@@ -50,4 +55,9 @@ resource "google_sql_user" "default" {
   instance = google_sql_database_instance.default.name
   password = var.db_password
   project  = var.project_id
+
+  lifecycle {
+    # Password is managed via Secret Manager / bootstrap; ignore noisy diffs.
+    ignore_changes = [password]
+  }
 }

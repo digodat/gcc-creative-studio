@@ -8,6 +8,31 @@ This infrastructure is managed using a modular, environment-based approach with 
 * **Don't Repeat Yourself (DRY):** All the logic for creating a service is defined once in a reusable **module**.
 * **Strong Isolation:** Each environment (`dev`, `prod`, etc.) is managed in its own directory, with its own state file, to prevent accidental changes to production.
 
+## Attach this machine to an existing deployment
+
+If you originally deployed from another computer and need Terraform here (e.g. project `bbva-genai-veo`):
+
+1. Copy `infra/environments/dev-infra-example/` to a new folder such as `infra/environments/bbva-genai-veo/`.
+2. Set `backend.tf` to the **same GCS bucket/prefix** used when the project was first deployed (ask the teammate / check the original machine).
+3. Fill `*.tfvars` with the real project id, region, GitHub connection, and audiences.
+4. Authenticate and init:
+
+```bash
+gcloud auth application-default login
+gcloud config set project bbva-genai-veo
+cd infra/environments/bbva-genai-veo
+terraform init
+terraform plan
+```
+
+5. Before applying Email/Password auth on an already-live Identity Platform project, **import** the singleton config so Terraform does not try to recreate it:
+
+```bash
+terraform import 'module.creative_studio_platform.google_identity_platform_config.auth' projects/bbva-genai-veo/config
+```
+
+6. Run `terraform apply` and create client users manually in Firebase Console → Authentication → Users.
+
 ## 📁 Directory Structure
 
 The project is organized into `modules` and `environments`.
