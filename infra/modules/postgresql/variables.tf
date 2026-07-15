@@ -17,3 +17,9 @@ variable "region" {}
 variable "db_name" { default = "creative_studio" }
 variable "db_user" { default = "studio_user" }
 variable "db_password" { sensitive = true }
+
+variable "db_tier" {
+  type        = string
+  description = "Cloud SQL machine tier. Use an ENTERPRISE-compatible tier (e.g. db-g1-small)."
+  default     = "db-g1-small"
+}

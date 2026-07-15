@@ -29,6 +29,7 @@ import {MatSnackBar} from '@angular/material/snack-bar';
 import {Router} from '@angular/router';
 import {Injector, NgZone} from '@angular/core';
 import {environment} from '../../environments/environment';
+import {FormsModule} from '@angular/forms';
 import {MatCardModule} from '@angular/material/card';
 import {MatFormFieldModule} from '@angular/material/form-field';
 import {MatInputModule} from '@angular/material/input';
@@ -42,6 +43,7 @@ class MockAuthService {
   signInForGoogleIdentityPlatform = jasmine.createSpy(
     'signInForGoogleIdentityPlatform',
   );
+  signInWithEmailPassword = jasmine.createSpy('signInWithEmailPassword');
   // Add any other methods from AuthService that are called in LoginComponent
 }
 
@@ -72,6 +74,7 @@ describe('LoginComponent', () => {
     await TestBed.configureTestingModule({
       imports: [
         RouterTestingModule.withRoutes([{path: '', component: LoginComponent}]),
+        FormsModule,
         MatCardModule,
         MatFormFieldModule,
         MatInputModule,
@@ -221,6 +224,57 @@ describe('LoginComponent', () => {
         expect((component as any).handleLoginError).toHaveBeenCalledWith(error);
       }));
     });
+  });
+
+  describe('loginWithEmailPassword', () => {
+    beforeEach(() => {
+      consoleErrorSpy = spyOn(console, 'error');
+    });
+
+    it('should require email and password', () => {
+      spyOn(component, 'handleLoginError' as any);
+      component.email = '';
+      component.password = '';
+
+      component.loginWithEmailPassword();
+
+      expect((component as any).handleLoginError).toHaveBeenCalled();
+      expect(authService.signInWithEmailPassword).not.toHaveBeenCalled();
+    });
+
+    it('should call signInWithEmailPassword and navigate on success', fakeAsync(() => {
+      authService.signInWithEmailPassword.and.returnValue(of('test-token'));
+      spyOn(router, 'navigate');
+      component.email = 'client@example.com';
+      component.password = 'secret';
+
+      component.loginWithEmailPassword();
+      tick();
+
+      expect(authService.signInWithEmailPassword).toHaveBeenCalledWith(
+        'client@example.com',
+        'secret',
+      );
+      expect(component.loader).toBeFalse();
+      expect(router.navigate).toHaveBeenCalledWith(['/']);
+    }));
+
+    it('should handle error from signInWithEmailPassword', fakeAsync(() => {
+      const error = new Error('Invalid email or password.');
+      authService.signInWithEmailPassword.and.returnValue(
+        throwError(() => error),
+      );
+      spyOn(component, 'handleLoginError' as any);
+      component.email = 'client@example.com';
+      component.password = 'wrong';
+
+      component.loginWithEmailPassword();
+      tick();
+
+      expect(component.loader).toBeFalse();
+      expect(component.invalidLogin).toBeTrue();
+      expect((component as any).handleLoginError).toHaveBeenCalledWith(error);
+    }));
   });
 
   describe('handleLoginError', () => {

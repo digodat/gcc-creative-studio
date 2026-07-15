@@ -42,6 +42,8 @@ export class LoginComponent {
   invalidLogin = false;
   errorMessage = '';
   isBrowser: boolean;
+  email = '';
+  password = '';
 
   constructor(
     private authService: AuthService,
@@ -126,6 +128,40 @@ export class LoginComponent {
         },
       });
     }
+  }
+
+  loginWithEmailPassword() {
+    const email = this.email?.trim();
+    const password = this.password;
+
+    if (!email || !password) {
+      this.handleLoginError({
+        message: 'Please enter email and password.',
+      });
+      return;
+    }
+
+    this.loader = true;
+    this.invalidLogin = false;
+    this.errorMessage = '';
+
+    this.authService.signInWithEmailPassword(email, password).subscribe({
+      next: () => {
+        this.ngZone.run(() => {
+          this.loader = false;
+          void this.router.navigate([HOME_ROUTE]);
+        });
+      },
+      error: error => {
+        this.loader = false;
+        this.invalidLogin = true;
+        this.handleLoginError(
+          error || {
+            message: 'Invalid email or password.',
+          },
+        );
+      },
+    });
   }
 
   private handleLoginError(error: any, postErrorAction?: () => void) {

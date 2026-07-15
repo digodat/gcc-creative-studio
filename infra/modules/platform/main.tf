@@ -91,7 +91,8 @@ module "postgresql" {
   source      = "../postgresql"
   project_id  = var.gcp_project_id
   region      = var.gcp_region
-  
+  db_tier     = var.db_tier
+
   # Pass the ACTUAL value to create the user
   db_password = data.google_secret_manager_secret_version.db_password.secret_data
 }
@@ -114,7 +115,8 @@ module "backend_service" {
   container_env_vars    = local.backend_env_vars
   runtime_secrets = var.backend_runtime_secrets
   custom_audiences      = var.backend_custom_audiences
-  scaling_min_instances = 1
+  scaling_min_instances = var.be_scaling_min_instances
+  scaling_max_instances = var.be_scaling_max_instances
   source_repository_id = google_cloudbuildv2_repository.source_repo.id
   cpu = var.be_cpu
   memory = var.be_memory
@@ -137,6 +139,41 @@ module "backend_service" {
 resource "google_firebase_project" "default" {
   provider = google-beta
   project = var.gcp_project_id
+}
+
+# Enables Email/Password auth alongside existing Google IdP (configured separately).
+# For an already-initialized Identity Platform project, import before apply:
+#   terraform import 'module.creative_studio_platform.google_identity_platform_config.auth' projects/PROJECT_ID/config
+# Review `terraform plan` carefully after import so unrelated console settings are not wiped.
+resource "google_identity_platform_config" "auth" {
+  provider = google-beta
+  project  = google_firebase_project.default.project
+
+  sign_in {
+    allow_duplicate_emails = false
+
+    email {
+      enabled           = true
+      password_required = true
+    }
+  }
+
+  lifecycle {
+    # Keep Google IdP / console-managed fields outside this MVP resource.
+    ignore_changes = [
+      authorized_domains,
+      blocking_functions,
+      mfa,
+      multi_tenant,
+      sms_region_config,
+      quota,
+      sign_in[0].anonymous,
+      sign_in[0].phone_number,
+      sign_in[0].allow_duplicate_emails,
+    ]
+  }
+
+  depends_on = [google_firebase_project.default]
 }
 
 module "frontend_service" {

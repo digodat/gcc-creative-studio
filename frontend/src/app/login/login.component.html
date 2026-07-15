@@ -30,7 +30,7 @@
   </video>
 
   <!-- Mobile View -->
-  <div class="lg:hidden flex flex-col justify-center items-center gap-4 z-10">
+  <div class="lg:hidden flex flex-col justify-center items-center gap-4 z-10 w-full">
     <h1 class="mat-display-large">
       Creative <span class="linear-text">Studio</span>
     </h1>
@@ -43,9 +43,52 @@
       color="primary"
       (click)="loginWithGoogle()"
       class="w-full max-w-xs h-12 text-lg"
+      [disabled]="loader"
     >
       Login with Google
     </button>
+
+    <div class="login-divider max-w-xs w-full">
+      <span>or</span>
+    </div>
+
+    <form
+      class="email-login-form w-full max-w-xs"
+      (ngSubmit)="loginWithEmailPassword()"
+    >
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Email</mat-label>
+        <input
+          matInput
+          type="email"
+          name="email"
+          [(ngModel)]="email"
+          autocomplete="username"
+          required
+        />
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Password</mat-label>
+        <input
+          matInput
+          type="password"
+          name="password"
+          [(ngModel)]="password"
+          autocomplete="current-password"
+          required
+        />
+      </mat-form-field>
+      <button
+        mat-raised-button
+        color="primary"
+        type="submit"
+        class="w-full h-12 text-lg"
+        [disabled]="loader"
+      >
+        Login with email
+      </button>
+    </form>
+
     <mat-spinner class="mt-5" [diameter]="50" *ngIf="this.loader"></mat-spinner>
   </div>
 
@@ -67,18 +110,61 @@
           </h1>
         </mat-card-title>
       </mat-card-header>
-      <mat-card-content class="flex flex-col items-center">
+      <mat-card-content class="flex flex-col items-center w-full">
         <p class="register-text mb-4">
-          Single Sign on with your Google Account
+          Sign in with Google or with your email and password
         </p>
         <button
           mat-raised-button
           color="primary"
           (click)="loginWithGoogle()"
           class="w-full h-12 text-lg login-btn"
+          [disabled]="loader"
         >
           Login with Google
         </button>
+
+        <div class="login-divider w-full">
+          <span>or</span>
+        </div>
+
+        <form
+          class="email-login-form w-full"
+          (ngSubmit)="loginWithEmailPassword()"
+        >
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-label>Email</mat-label>
+            <input
+              matInput
+              type="email"
+              name="emailDesktop"
+              [(ngModel)]="email"
+              autocomplete="username"
+              required
+            />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-label>Password</mat-label>
+            <input
+              matInput
+              type="password"
+              name="passwordDesktop"
+              [(ngModel)]="password"
+              autocomplete="current-password"
+              required
+            />
+          </mat-form-field>
+          <button
+            mat-raised-button
+            color="primary"
+            type="submit"
+            class="w-full h-12 text-lg login-btn"
+            [disabled]="loader"
+          >
+            Login with email
+          </button>
+        </form>
+
         <mat-spinner
           class="mt-5 m-auto"
           [diameter]="50"

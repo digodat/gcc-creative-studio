@@ -57,7 +57,23 @@ variable "be_cpu" {
 
 variable "be_memory" {
   type = string
-  default = "2048Mi"
+  default = "2Gi"
+}
+
+variable "be_scaling_min_instances" {
+  type    = number
+  default = 0
+}
+
+variable "be_scaling_max_instances" {
+  type    = number
+  default = 10
+}
+
+variable "db_tier" {
+  type        = string
+  description = "Cloud SQL tier for the Postgres instance."
+  default     = "db-g1-small"
 }
 
 variable "fe_cpu" {

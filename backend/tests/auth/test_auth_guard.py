@@ -108,6 +108,70 @@ class TestGetCurrentUser:
         assert exc_info.value.status_code == 401
         assert "not part of an allowed organization" in exc_info.value.detail
 
+    @pytest.mark.anyio
+    @patch("src.auth.auth_guard.auth.verify_id_token")
+    async def test_get_current_user_email_password_skips_allowed_orgs(
+        self,
+        mock_verify,
+        mock_user_service,
+    ):
+        config_service.ENVIRONMENT = "local"
+        config_service.ALLOWED_ORGS_STR = "allowed.com"
+
+        mock_verify.return_value = {
+            "email": "client@external.com",
+            "name": "External Client",
+            "firebase": {"sign_in_provider": "password"},
+        }
+
+        user = await get_current_user(
+            token="valid_token",
+            user_service=mock_user_service,
+        )
+
+        assert user.email == "test@example.com"
+        mock_user_service.create_user_if_not_exists.assert_called_once_with(
+            email="client@external.com",
+            name="External Client",
+            picture="",
+        )
+
+    @pytest.mark.anyio
+    @patch("src.auth.auth_guard.id_token.verify_oauth2_token")
+    @patch("src.auth.auth_guard.auth.verify_id_token")
+    async def test_prod_uses_firebase_for_securetoken_issuer(
+        self,
+        mock_firebase_verify,
+        mock_google_verify,
+        mock_user_service,
+    ):
+        config_service.ENVIRONMENT = "production"
+        config_service.ALLOWED_ORGS_STR = ""
+        config_service.GOOGLE_TOKEN_AUDIENCE = "audience.apps.googleusercontent.com"
+
+        # Minimal JWT-shaped token: header.payload.sig with Firebase issuer
+        import base64
+        import json
+
+        payload = base64.urlsafe_b64encode(
+            json.dumps(
+                {"iss": "https://securetoken.google.com/my-project"}
+            ).encode()
+        ).decode().rstrip("=")
+        token = f"aaa.{payload}.bbb"
+
+        mock_firebase_verify.return_value = {
+            "email": "client@external.com",
+            "name": "External Client",
+            "iss": "https://securetoken.google.com/my-project",
+            "firebase": {"sign_in_provider": "password"},
+        }
+
+        await get_current_user(token=token, user_service=mock_user_service)
+
+        mock_firebase_verify.assert_called_once_with(token)
+        mock_google_verify.assert_not_called()
+
 
 class TestRoleChecker:
     """Tests for RoleChecker class."""
